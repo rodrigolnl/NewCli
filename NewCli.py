@@ -65,6 +65,7 @@ class Cli:
         self.__console_flag = False
 
         self.__marker = '>'
+        self.not_found_msg = 'Command not found!'
         self.__actions: list[Command] = []
         self.__dict_of_actions_by_groupcommand = {}
         self.__dict_of_commands_by_group = {'main': []}
@@ -75,9 +76,11 @@ class Cli:
 
         self.__bag = Bag(self)
 
-    def config(self, allow_console: bool = True, start_on_console: bool = False, prompt: str = None):
+    def config(self, allow_console: bool = True, start_on_console: bool = False, prompt: str = None,
+               not_found_msg: str = None):
         self.__console_flag = start_on_console
         self.__marker = prompt if prompt is not None else self.__marker
+        self.not_found_msg = not_found_msg if not_found_msg is not None else self.not_found_msg
 
     def run(self):
         threading.Thread(target=self.__thread_key_press_monitor, daemon=True).start()
@@ -98,10 +101,10 @@ class Cli:
 
         if group in self.__dict_of_commands_by_group:
             if command in self.__dict_of_commands_by_group[group]:
-                raise Exception
+                raise Exception(f'"{group + " " if group is not "main" else ""}{command}" already in use.')
 
         if args is not None and not run_on_startup:
-            raise Exception
+            raise Exception('Startup arguments can only be used with commands that run on startup.')
 
         if not re.fullmatch(r'_+', command):
             action = Command(command, target, group, args, wait)
@@ -123,11 +126,11 @@ class Cli:
     def add_keybind(self, keybind: str, target: Callable):
         keybind = keybind.lower()
         if not re.fullmatch(r'[A-z0-9]+(\+[A-z0-9]*)*', keybind):
-            raise Exception
+            raise Exception('This is not a valid keybind string.')
         if keybind in self.__dict_of_keybinds:
-            raise Exception
+            raise Exception(f'{keybind} already in use.')
         if keybind == 'ctrl+c':
-            raise Exception
+            raise Exception('ctrl+c is a reserved keybind to open and close the console. It can not be changed.')
         self.__dict_of_keybinds[keybind] = Keybind(keybind, target)
 
     def __print(self, text=None, end=None, flag=Flag.general):
@@ -232,6 +235,8 @@ class Cli:
                     else:
                         thread.start()
                     self.__console_flag = True
+                else:
+                    print(self.not_found_msg, end='' if self.not_found_msg == '' else '\n')
             time.sleep(0.1)
 
     def __thread_serial_print(self):
