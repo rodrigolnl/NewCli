@@ -18,12 +18,11 @@ def startup(bag, text):
 
 
 def startup2():
-    print('testando')
+    print('iniciando')
 
 
 cli = Cli()
 cli.add_keybind('ctrl+p+o', target=teste)
-cli.add_command('teste', target=teste, group='print')
 cli.add_command('teste', target=teste, group='print')
 # cli.add_command('imprimir', target=imprimir)
 # cli.add_command('_', target=startup, args='teste', run_on_startup=True)

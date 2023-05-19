@@ -70,19 +70,35 @@ class Cli:
         self.__dict_of_actions_by_groupcommand = {}
         self.__dict_of_commands_by_group = {'main': []}
 
+        self.__list_of_actions_on_startup: [Command] = []
+
         self.__dict_of_keybinds = {}
 
         self.__to_print = []
 
         self.__bag = Bag(self)
 
-    def config(self, allow_console: bool = True, start_on_console: bool = False, prompt: str = None,
-               not_found_msg: str = None):
-        self.__console_flag = start_on_console
+        self.__show_info = True
+
+    def config(self, allow_console: bool = True, start_on_console: bool = None, prompt: str = None,
+               not_found_msg: str = None, show_info: bool = None):
+        self.__console_flag = start_on_console if start_on_console is not None else self.__console_flag
         self.__marker = prompt if prompt is not None else self.__marker
         self.not_found_msg = not_found_msg if not_found_msg is not None else self.not_found_msg
+        self.__show_info = show_info if show_info is not None else self.__show_info
 
     def run(self):
+        if self.__show_info:
+            print('Press "ctrl+c" to alternate between input or output!')
+        for action in self.__list_of_actions_on_startup:
+            user_input_args = list(action.arguments) if action.arguments is not None else []
+            for i, arg in enumerate(action.target.__code__.co_varnames):
+                if arg.lower() == 'bag':
+                    user_input_args.insert(i, self.__bag)
+            if len(user_input_args) > 0:
+                threading.Thread(target=action.target, args=tuple(user_input_args)).start()
+            else:
+                threading.Thread(target=action.target).start()
         threading.Thread(target=self.__thread_key_press_monitor, daemon=True).start()
         threading.Thread(target=self.__thread_console_command_monitor, daemon=True).start()
         threading.Thread(target=self.__thread_serial_print, daemon=True).start()
@@ -101,7 +117,7 @@ class Cli:
 
         if group in self.__dict_of_commands_by_group:
             if command in self.__dict_of_commands_by_group[group]:
-                raise Exception(f'"{group + " " if group is not "main" else ""}{command}" already in use.')
+                raise Exception(f'"{group + " " if group != "main" else ""}{command}" already in use.')
 
         if args is not None and not run_on_startup:
             raise Exception('Startup arguments can only be used with commands that run on startup.')
@@ -114,19 +130,12 @@ class Cli:
             self.__dict_of_commands_by_group[group].append(command)
 
         if run_on_startup:
-            user_input_args = list(args) if args is not None else []
-            for i, arg in enumerate(target.__code__.co_varnames):
-                if arg.lower() == 'bag':
-                    user_input_args.insert(i, self.__bag)
-            if len(user_input_args) > 0:
-                threading.Thread(target=target, args=tuple(user_input_args)).start()
-            else:
-                threading.Thread(target=target).start()
+            self.__list_of_actions_on_startup.append(Command(command, target, group, args, wait))
 
     def add_keybind(self, keybind: str, target: Callable):
         keybind = keybind.lower()
         if not re.fullmatch(r'[A-z0-9]+(\+[A-z0-9]*)*', keybind):
-            raise Exception('This is not a valid keybind string.')
+            raise Exception('This is not a valid keybind string. The expected format is "{key}" or {key}+{key}')
         if keybind in self.__dict_of_keybinds:
             raise Exception(f'{keybind} already in use.')
         if keybind == 'ctrl+c':
@@ -161,13 +170,13 @@ class Cli:
                 enter_pressed = 0
 
             if self.window.is_focused():
+
                 if keyboard.is_pressed('ctrl+c'):
                     self.__console_flag = not self.__console_flag
                     if self.__console_flag:
                         self.__print(flag=Flag.input_marker)
                     else:
                         print()
-
                 while not key_released('c') and keyboard.is_pressed('c'):
                     time.sleep(0.05)
 
