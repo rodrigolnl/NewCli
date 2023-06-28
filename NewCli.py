@@ -27,6 +27,9 @@ class Bag:
     def print(self, text, end=None):
         self.__cli.print(text, end)
 
+    def input(self):
+        return self.__cli.input()
+
 
 class Window:
     def __init__(self):
@@ -63,6 +66,7 @@ class Cli:
         self.__stop_flag = False
         self.__pause_flag = True
         self.__console_flag = False
+        self.__print_flag = True
 
         self.__marker = '>'
         self.not_found_msg = 'Command not found!'
@@ -108,12 +112,12 @@ class Cli:
             except KeyboardInterrupt:
                 quit()
 
-    def add_command(self, command: str, target: Callable, group: str = None, args=None, wait: bool = True,
+    def add_command(self, command: str, target: Callable, group: str = None, args=None, synchronous: bool = True,
                     run_on_startup: bool = False):
         group = 'main' if group is None else group.lower()
         command = command.lower()
         args = (args,) if type(args) not in [tuple, type(None)] else args
-        wait = wait if not run_on_startup else False
+        synchronous = synchronous if not run_on_startup else False
 
         if group in self.__dict_of_commands_by_group:
             if command in self.__dict_of_commands_by_group[group]:
@@ -123,14 +127,14 @@ class Cli:
             raise Exception('Startup arguments can only be used with commands that run on startup.')
 
         if not re.fullmatch(r'_+', command):
-            action = Command(command, target, group, args, wait)
+            action = Command(command, target, group, args, synchronous)
             self.__dict_of_actions_by_groupcommand[group + command] = action
             if group not in self.__dict_of_commands_by_group:
                 self.__dict_of_commands_by_group[group] = []
             self.__dict_of_commands_by_group[group].append(command)
 
         if run_on_startup:
-            self.__list_of_actions_on_startup.append(Command(command, target, group, args, wait))
+            self.__list_of_actions_on_startup.append(Command(command, target, group, args, synchronous))
 
     def add_keybind(self, keybind: str, target: Callable):
         keybind = keybind.lower()
@@ -152,6 +156,12 @@ class Cli:
 
     def print(self, text, end=None):
         self.__print(text, end, flag=Flag.general)
+
+    def input(self):
+        self.__print_flag = False
+        user_input = input()
+        self.__print_flag = True
+        return user_input
 
     def __thread_key_press_monitor(self):
         def key_released(key: str):
@@ -193,6 +203,7 @@ class Cli:
                     if keyboard.is_pressed(keybind.keys):
                         args = keybind.target.__code__.co_varnames
                         if len(args) == 1 and args[0].lower() == 'bag':
+                            print('aqui')
                             threading.Thread(target=keybind.target, args=(self.__bag,), daemon=True).start()
                         else:
                             threading.Thread(target=keybind.target, daemon=True).start()
@@ -251,7 +262,7 @@ class Cli:
     def __thread_serial_print(self):
         while not self.__stop_flag:
             if self.__to_print:
-                if not self.__console_flag:
+                if not self.__console_flag and self.__print_flag:
                     content = self.__to_print.pop(0)
                     print(str(content['value']), end=content['end'] if content['end'] is not None else '\n')
             time.sleep(0.05)
