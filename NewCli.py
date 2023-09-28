@@ -16,8 +16,7 @@ class Bag:
         if key in self.__values:
             return self.__values[key]
         else:
-            self.__values[key] = None
-            return self.__values[key]
+            return None
 
     def __setitem__(self, key, value):
         self.__values[key] = value
@@ -87,7 +86,7 @@ class Cli:
         self.__stop_flag = False
         self.__pause_flag = True
 
-        self.not_found_msg = 'Command not found!'
+        self.__not_found_msg = 'Command not found!'
         self.__marker = '>'
         self.__show_info = True
 
@@ -98,7 +97,7 @@ class Cli:
                not_found_msg: str = None, show_info: bool = None):
         self.__marker = prompt if prompt is not None else self.__marker
         self.__mode = 'interactive' if start_on_interactive else 'non-interactive'
-        self.not_found_msg = not_found_msg if not_found_msg is not None else self.not_found_msg
+        self.__not_found_msg = not_found_msg if not_found_msg is not None else self.__not_found_msg
         self.__show_info = show_info if show_info is not None else self.__show_info
 
     def run(self):
@@ -151,7 +150,7 @@ class Cli:
             raise Exception('ctrl+i is a reserved keybind to alter between the interactive mode. It can not be changed.')
         self.__dict_of_keybinds[keybind] = Keybind(keybind, target, args)
 
-    def add_service(self, target: Callable, args=None):
+    def run_on_startup(self, target: Callable, args=None):
         args = (args,) if type(args) not in [tuple, type(None)] else args
         self.__list_of_actions_on_startup.append(Service(target, args))
 
@@ -277,7 +276,7 @@ class Cli:
                                 time.sleep(0.1)
                         self.__mode = 'interactive'
                     else:
-                        print(self.not_found_msg, end='' if self.not_found_msg == '' else '\n')
+                        print(self.__not_found_msg, end='' if self.__not_found_msg == '' else '\n')
                 time.sleep(0.1)
         except Exception:
             pass
@@ -287,5 +286,5 @@ class Cli:
             if self.__to_print:
                 if self.__mode == 'non-interactive':
                     content = self.__to_print.pop(0)
-                    print(str(content['value']), end=content['end'] if content['end'] is not None else '\n')
+                    print(str(content['value']), end=str(content['end']) if content['end'] is not None else '\n')
             time.sleep(0.05)

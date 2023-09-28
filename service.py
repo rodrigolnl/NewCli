@@ -17,7 +17,7 @@ def pause_start(bag: Cli.Bag, status: bool):
 
 cli = Cli()
 cli.config(start_on_interactive=True)
-cli.add_service(target=service)
+cli.run_on_startup(target=service)
 cli.add_keybind('ctrl+s', target=pause_start, args=True)
 cli.add_keybind('ctrl+p', target=pause_start, args=False)
 cli.add_keybind('ctrl+q', target=cli.quit)
